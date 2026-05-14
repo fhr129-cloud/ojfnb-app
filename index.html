@@ -216,9 +216,8 @@ body{font-family:'Noto Sans KR',-apple-system,sans-serif;background:var(--gray-5
       </svg>
     </div>
     <h1>중간결산 제출</h1>
-    <p class="subtitle">매니저 포털 — 이름과 사번으로 로그인하세요</p>
-    <div class="field"><label>이름</label><input type="text" id="ln" placeholder="홍길동" autocomplete="name"></div>
-    <div class="field"><label>사번</label><input type="text" id="lpw" placeholder="M001" autocomplete="off" style="text-transform:uppercase"></div>
+    <p class="subtitle">매니저 포털 — 사번을 입력하세요</p>
+    <div class="field"><label>사번</label><input type="text" id="lpw" placeholder="예: 382910AB" autocomplete="off" style="font-family:monospace;font-size:18px;font-weight:600;letter-spacing:3px;text-transform:uppercase"></div>
     <div class="err-msg" id="lerr"></div>
     <button class="btn-primary" id="btn-login" onclick="doLogin()">로그인</button>
     <div class="divider"><span>관리자</span></div>
@@ -301,15 +300,23 @@ body{font-family:'Noto Sans KR',-apple-system,sans-serif;background:var(--gray-5
     <div id="atab-managers" style="display:none">
       <div class="set-card">
         <h3>매니저 계정 추가</h3>
-        <p class="hint-text">Firebase에 로그인 계정이 생성되고 매니저 목록에 등록됩니다.</p>
+        <p class="hint-text">이름과 사업장을 입력하고 사번 생성을 누르세요.</p>
         <div class="set-field"><label>이름</label><input type="text" id="add-name" placeholder="홍길동"></div>
-        <div class="set-field"><label>사번</label><input type="text" id="add-email" placeholder="M001" style="text-transform:uppercase"></div>
         <div class="set-field">
           <label>담당 사업장 <span style="font-weight:400;color:var(--gray-400)">(여러 개면 쉼표로 구분)</span></label>
           <input type="text" id="add-store" placeholder="강남점, 홍대점, 신촌점">
         </div>
-        <p style="font-size:11px;color:var(--gray-400);margin-bottom:12px">비밀번호는 자동 생성됩니다 (OjfnbM001!)</p>
-        <button class="btn-save" id="btn-add" onclick="addManager()">매니저 추가</button>
+        <div class="set-field">
+          <label>사번</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" id="add-email" placeholder="사번 생성 버튼을 누르세요" readonly style="flex:1;background:var(--gray-100);font-family:monospace;font-size:15px;font-weight:600;color:var(--gray-800);letter-spacing:2px">
+            <button class="btn-save" style="white-space:nowrap;padding:10px 16px" onclick="genEmpId()">사번 생성</button>
+          </div>
+        </div>
+        <div id="empid-preview" style="display:none;background:var(--blue-light);border-radius:var(--r-sm);padding:12px 14px;margin-bottom:14px;font-size:13px;color:#1E3A8A">
+          매니저에게 이 사번을 알려주세요 → <strong id="empid-display"></strong>
+        </div>
+        <button class="btn-save" id="btn-add" onclick="addManager()" disabled>계정 등록</button>
         <span class="save-ok" id="add-ok"></span>
       </div>
       <div class="set-card">
@@ -441,14 +448,12 @@ async function loadCfg() {
   try { const s=await getDoc(doc(db,"config","settings")); if(s.exists()) cfg=s.data(); } catch(e) {}
 }
 
-// ── 로그인 ──
-// 매니저: 이름 + 사번 입력 → 사번@ojfnb.com / 비밀번호: Ojfnb사번! 으로 자동 변환
+// ── 로그인 ── 사번만 입력 → 자동으로 Firebase 이메일/비밀번호 변환
 window.doLogin = async () => {
-  const name=document.getElementById("ln").value.trim();
   const id=document.getElementById("lpw").value.trim().toUpperCase();
   const errEl=document.getElementById("lerr");
   const btn=document.getElementById("btn-login");
-  if(!name||!id){errEl.textContent="이름과 사번을 입력해주세요";errEl.style.display="block";return}
+  if(!id){errEl.textContent="사번을 입력해주세요";errEl.style.display="block";return}
   const email=`${id.toLowerCase()}@ojfnb.com`;
   const pw=`Ojfnb${id}!`;
   btn.disabled=true;btn.textContent="로그인 중...";
@@ -456,7 +461,7 @@ window.doLogin = async () => {
     await signInWithEmailAndPassword(auth,email,pw);
     errEl.style.display="none";
   } catch(e) {
-    errEl.textContent="이름 또는 사번을 확인해주세요";
+    errEl.textContent="사번을 확인해주세요";
     errEl.style.display="block";
   }
   btn.disabled=false;btn.textContent="로그인";
@@ -693,6 +698,18 @@ async function loadRegList() {
   }).join("");
 }
 
+// ── 사번 자동 생성: 숫자 6자리 + 영문 2자리 ──
+window.genEmpId = () => {
+  const nums=Math.floor(100000+Math.random()*900000).toString();
+  const chars="ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lets=chars[Math.floor(Math.random()*chars.length)]+chars[Math.floor(Math.random()*chars.length)];
+  const empId=nums+lets;
+  document.getElementById("add-email").value=empId;
+  document.getElementById("empid-display").textContent=empId;
+  document.getElementById("empid-preview").style.display="block";
+  document.getElementById("btn-add").disabled=false;
+};
+
 window.addManager = async () => {
   const name=document.getElementById("add-name").value.trim();
   const storeInput=document.getElementById("add-store").value.trim();
@@ -700,21 +717,22 @@ window.addManager = async () => {
   const btn=document.getElementById("btn-add");
   const ok=document.getElementById("add-ok");
   if(!name||!empId){toast("이름과 사번을 입력해주세요",true);return}
-  // 사업장 여러 개 → 배열로 저장
-  const stores=storeInput ? storeInput.split(",").map(s=>s.trim()).filter(Boolean) : [];
+  const stores=storeInput?storeInput.split(",").map(s=>s.trim()).filter(Boolean):[];
   const email=`${empId.toLowerCase()}@ojfnb.com`;
   const pw=`Ojfnb${empId}!`;
-  btn.disabled=true;btn.textContent="추가 중...";
+  btn.disabled=true;btn.textContent="등록 중...";
   try {
     const cred=await createUserWithEmailAndPassword(auth,email,pw);
     await setDoc(doc(db,"managers",cred.user.uid),{name,stores,email,empId,createdAt:new Date()});
-    ok.textContent=`${name}(${empId}) 추가 완료 ✓`;ok.style.display="inline";
+    ok.textContent=`${name} 등록 완료 ✓`;ok.style.display="inline";
     setTimeout(()=>ok.style.display="none",3000);
     ["add-name","add-store","add-email"].forEach(id=>document.getElementById(id).value="");
+    document.getElementById("empid-preview").style.display="none";
+    btn.disabled=true;
     loadRegList();
     renderAdmin();
-  } catch(e) { toast("추가 실패: "+e.message,true); }
-  btn.disabled=false;btn.textContent="매니저 추가";
+  } catch(e){toast("등록 실패: "+e.message,true);}
+  btn.disabled=false;btn.textContent="계정 등록";
 };
 
 window.saveSettings = async () => {
@@ -757,7 +775,6 @@ window.exportCSV = () => {
   toast("CSV 저장됨");
 };
 
-document.getElementById("ln").addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("lpw").focus()});
 document.getElementById("lpw").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin()});
 </script>
 </body>
