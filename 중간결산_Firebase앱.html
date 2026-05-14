@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>중간결산 제출 시스템</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --blue:#1B4FD8;--blue-light:#EEF2FF;--blue-mid:#3B6FEF;
+  --green:#0F7B4A;--green-light:#ECFDF5;
+  --red:#C0392B;--red-light:#FEF2F2;
+  --amber:#B45309;--amber-light:#FFFBEB;
+  --gray-50:#F8FAFC;--gray-100:#F1F5F9;--gray-200:#E2E8F0;
+  --gray-300:#CBD5E1;--gray-400:#94A3B8;--gray-500:#64748B;
+  --gray-600:#475569;--gray-700:#334155;--gray-800:#1E293B;--gray-900:#0F172A;
+  --r-sm:8px;--r-md:12px;--r-lg:16px;--r-xl:20px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Noto Sans KR',-apple-system,sans-serif;background:var(--gray-50);color:var(--gray-800);min-height:100vh;font-size:14px;line-height:1.5}
+.screen{display:none;min-height:100vh}
+.screen.active{display:flex;flex-direction:column}
+
+/* 로딩 */
+#sc-loading{align-items:center;justify-content:center}
+.spinner{width:36px;height:36px;border:3px solid var(--gray-200);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* 로그인 */
+#sc-login{background:linear-gradient(160deg,#1B4FD8,#1540B0);align-items:center;justify-content:center;padding:24px}
+.login-card{background:#fff;border-radius:var(--r-xl);padding:36px 32px;width:100%;max-width:380px;box-shadow:0 10px 30px rgba(0,0,0,0.12)}
+.login-logo{width:52px;height:52px;background:var(--blue-light);border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;margin-bottom:20px}
+.login-logo svg{width:26px;height:26px;color:var(--blue)}
+.login-card h1{font-size:20px;font-weight:600;margin-bottom:4px;color:var(--gray-900)}
+.subtitle{font-size:13px;color:var(--gray-500);margin-bottom:28px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;font-weight:500;color:var(--gray-600);margin-bottom:6px}
+.field input{width:100%;padding:12px 14px;border:1.5px solid var(--gray-200);border-radius:var(--r-sm);font-size:14px;font-family:inherit;color:var(--gray-800);background:var(--gray-50);outline:none;transition:border-color .15s,box-shadow .15s}
+.field input:focus{border-color:var(--blue);background:#fff;box-shadow:0 0 0 3px rgba(27,79,216,.1)}
+.field input::placeholder{color:var(--gray-300)}
+.btn-primary{width:100%;padding:13px;background:var(--blue);color:#fff;border:none;border-radius:var(--r-sm);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .15s;margin-top:4px}
+.btn-primary:hover{background:#1540B0}
+.btn-primary:disabled{opacity:.6;cursor:not-allowed}
+.divider{text-align:center;margin:16px 0;position:relative}
+.divider::before{content:'';position:absolute;top:50%;left:0;right:0;height:1px;background:var(--gray-200)}
+.divider span{background:#fff;position:relative;padding:0 12px;font-size:12px;color:var(--gray-400)}
+.btn-secondary{width:100%;padding:11px;background:transparent;border:1.5px solid var(--gray-200);border-radius:var(--r-sm);color:var(--gray-500);font-size:13px;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s}
+.btn-secondary:hover{border-color:var(--gray-300);background:var(--gray-50);color:var(--gray-700)}
+.err-msg{font-size:12px;color:var(--red);margin-top:10px;display:none;text-align:center;padding:8px;background:var(--red-light);border-radius:var(--r-sm)}
+
+/* 앱 공통 */
+.app-header{background:#fff;border-bottom:1px solid var(--gray-200);padding:0 20px;position:sticky;top:0;z-index:10}
+.header-inner{max-width:600px;margin:0 auto;height:56px;display:flex;align-items:center;justify-content:space-between}
+.brand{font-size:15px;font-weight:600;color:var(--gray-900);display:flex;align-items:center;gap:8px}
+.brand .dot{width:8px;height:8px;border-radius:50%;background:var(--blue)}
+.user-chip{display:flex;align-items:center;gap:8px;background:var(--gray-100);border-radius:20px;padding:4px 12px 4px 4px}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--blue);color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.user-name{font-size:13px;font-weight:500;color:var(--gray-700)}
+.btn-logout{padding:6px 10px;background:none;border:none;color:var(--gray-400);cursor:pointer;font-size:12px;border-radius:var(--r-sm);font-family:inherit;transition:all .15s}
+.btn-logout:hover{background:var(--gray-100);color:var(--gray-600)}
+.page{flex:1;padding:24px 20px;max-width:600px;margin:0 auto;width:100%}
+
+/* 월 헤더 */
+.month-hd{background:linear-gradient(135deg,var(--blue),var(--blue-mid));border-radius:var(--r-lg);padding:20px 22px;margin-bottom:20px;color:#fff;position:relative;overflow:hidden}
+.month-hd::after{content:'';position:absolute;right:-20px;top:-20px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,.07)}
+.month-hd .period{font-size:12px;opacity:.8;margin-bottom:4px}
+.month-hd .title{font-size:18px;font-weight:600;margin-bottom:12px}
+.month-hd .dl-row{display:flex;align-items:center;gap:8px}
+.month-hd .dl-lbl{font-size:12px;opacity:.75}
+.month-hd .dl-val{font-size:13px;font-weight:500}
+.d-chip{padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
+.d-chip.safe{background:rgba(255,255,255,.25)}
+.d-chip.warn{background:rgba(255,190,0,.35)}
+.d-chip.danger{background:rgba(255,80,80,.4)}
+.d-chip.over{background:rgba(255,80,80,.5)}
+
+/* 제출 카드 */
+.sec-title{font-size:12px;font-weight:600;color:var(--gray-500);letter-spacing:.04em;text-transform:uppercase;margin-bottom:10px}
+.submit-card{background:#fff;border-radius:var(--r-lg);border:1.5px solid var(--gray-200);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08);cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .1s}
+.submit-card:hover:not(.submitted){border-color:var(--blue);box-shadow:0 4px 12px rgba(0,0,0,.08);transform:translateY(-1px)}
+.submit-card.submitted{cursor:default;border-color:#A7F3C0}
+.card-inner{padding:18px 20px;display:flex;align-items:center;gap:14px}
+.card-icon{width:44px;height:44px;border-radius:var(--r-sm);flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.card-icon.p{background:var(--blue-light)}
+.card-icon.s{background:var(--green-light)}
+.card-icon.u{background:var(--amber-light)}
+.card-icon svg{width:22px;height:22px}
+.card-body{flex:1;min-width:0}
+.card-name{font-size:15px;font-weight:600;color:var(--gray-900);margin-bottom:4px}
+.card-meta{font-size:12px;color:var(--gray-500);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.status-pill{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;flex-shrink:0}
+.sp-pend{background:var(--blue-light);color:var(--blue)}
+.sp-done{background:var(--green-light);color:var(--green)}
+.sp-urgn{background:var(--amber-light);color:var(--amber)}
+.card-arrow{color:var(--gray-300);flex-shrink:0}
+.card-arrow svg{width:16px;height:16px}
+.sub-detail{border-top:1px solid var(--gray-100);padding:14px 20px;background:var(--green-light);display:flex;align-items:center;gap:10px}
+.sub-detail .fi{color:var(--green)}
+.sub-detail .fn{font-size:13px;font-weight:500;color:var(--gray-800);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sub-detail .ft{font-size:11px;color:var(--gray-500);margin-top:1px}
+.notice{background:var(--blue-light);border-radius:var(--r-md);padding:14px 16px;margin-top:16px;display:flex;gap:10px;align-items:flex-start;border:1px solid #C7D7FB}
+.notice svg{width:16px;height:16px;color:var(--blue);flex-shrink:0;margin-top:1px}
+.notice p{font-size:12px;color:#1E3A8A;line-height:1.6}
+
+/* 모달 */
+.overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:100;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px)}
+.overlay.show{display:flex}
+@media(min-width:480px){.overlay{align-items:center}.modal-sheet{border-radius:var(--r-xl)!important;max-width:440px}}
+.modal-sheet{background:#fff;border-radius:var(--r-xl) var(--r-xl) 0 0;width:100%;overflow:hidden;animation:slideUp .25s ease}
+@keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-handle{width:36px;height:4px;border-radius:2px;background:var(--gray-200);margin:12px auto 0}
+.modal-hd{padding:16px 24px 0}
+.modal-hd h2{font-size:17px;font-weight:600;color:var(--gray-900)}
+.modal-hd p{font-size:13px;color:var(--gray-500);margin-top:4px}
+.modal-body{padding:20px 24px}
+.upload-zone{border:2px dashed var(--gray-200);border-radius:var(--r-md);padding:36px 20px;text-align:center;cursor:pointer;transition:all .15s}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--blue);background:var(--blue-light)}
+.upload-zone svg{width:36px;height:36px;color:var(--gray-300);margin-bottom:10px}
+.upload-zone .uzt{font-size:14px;font-weight:500;color:var(--gray-700);margin-bottom:4px}
+.upload-zone .uzs{font-size:12px;color:var(--gray-400)}
+.upload-zone input{display:none}
+.file-prev{display:none;background:var(--gray-50);border-radius:var(--r-md);padding:14px 16px;border:1px solid var(--gray-200);align-items:center;gap:12px}
+.file-prev.show{display:flex}
+.fp-icon{width:40px;height:40px;background:var(--green-light);border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.fp-icon svg{width:20px;height:20px;color:var(--green)}
+.fp-info{flex:1;min-width:0}
+.fp-name{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fp-size{font-size:11px;color:var(--gray-500);margin-top:2px}
+.btn-clr{background:none;border:none;cursor:pointer;color:var(--gray-400);padding:4px;border-radius:4px}
+.btn-clr:hover{background:var(--gray-100);color:var(--gray-600)}
+.btn-clr svg{width:16px;height:16px}
+.modal-foot{padding:0 24px 28px;display:flex;gap:10px}
+.btn-cancel{flex:1;padding:13px;border:1.5px solid var(--gray-200);background:#fff;border-radius:var(--r-sm);font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;color:var(--gray-600)}
+.btn-cancel:hover{background:var(--gray-50)}
+.btn-submit{flex:2;padding:13px;background:var(--blue);border:none;border-radius:var(--r-sm);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;color:#fff;transition:all .15s}
+.btn-submit:hover:not(:disabled){background:#1540B0}
+.btn-submit:disabled{opacity:.4;cursor:not-allowed}
+
+/* 토스트 */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--gray-900);color:#fff;padding:12px 20px;border-radius:20px;font-size:13px;font-weight:500;z-index:200;display:flex;align-items:center;gap:8px;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{background:var(--red)}
+.toast svg{width:16px;height:16px}
+
+/* 관리자 */
+.admin-tabs{display:flex;border-bottom:1px solid var(--gray-200);margin-bottom:20px}
+.atab{padding:10px 16px;font-size:13px;font-weight:500;border:none;background:none;cursor:pointer;color:var(--gray-500);border-bottom:2px solid transparent;font-family:inherit;margin-bottom:-1px;transition:all .15s}
+.atab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.stat-box{background:#fff;border-radius:var(--r-md);padding:14px;border:1px solid var(--gray-200);text-align:center}
+.stat-box .sn{font-size:26px;font-weight:700;margin-bottom:2px}
+.stat-box .sl{font-size:11px;color:var(--gray-500)}
+.stat-box.blue .sn{color:var(--blue)}
+.stat-box.green .sn{color:var(--green)}
+.stat-box.red .sn{color:var(--red)}
+.prog-wrap{background:#fff;border-radius:var(--r-md);padding:14px 16px;border:1px solid var(--gray-200);margin-bottom:16px}
+.prog-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.prog-title{font-size:13px;font-weight:500}
+.prog-pct{font-size:14px;font-weight:700;color:var(--blue)}
+.prog-bar{height:8px;background:var(--gray-100);border-radius:4px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--blue-mid));border-radius:4px;transition:width .5s ease}
+.mgr-list{display:flex;flex-direction:column;gap:8px}
+.mgr-row{background:#fff;border-radius:var(--r-md);padding:14px 16px;border:1px solid var(--gray-200);display:flex;align-items:center;gap:12px}
+.mgr-av{width:34px;height:34px;border-radius:50%;background:var(--gray-100);color:var(--gray-600);font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.mgr-av.done{background:var(--green-light);color:var(--green)}
+.mgr-info{flex:1;min-width:0}
+.mgr-name{font-size:14px;font-weight:500}
+.mgr-sub{font-size:11px;color:var(--gray-400)}
+.mgr-file{font-size:11px;color:var(--gray-400);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.pill.done{background:var(--green-light);color:var(--green)}
+.pill.pend{background:var(--gray-100);color:var(--gray-500)}
+.pill.late{background:var(--red-light);color:var(--red)}
+.filter-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.fbtn{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;border:1.5px solid var(--gray-200);background:#fff;cursor:pointer;color:var(--gray-600);font-family:inherit;transition:all .15s}
+.fbtn.active{background:var(--blue);border-color:var(--blue);color:#fff}
+.top-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.export-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1.5px solid var(--gray-200);background:#fff;border-radius:var(--r-sm);font-size:13px;font-weight:500;cursor:pointer;color:var(--gray-600);font-family:inherit;transition:all .15s}
+.export-btn:hover{background:var(--gray-50)}
+.export-btn svg{width:14px;height:14px}
+.set-card{background:#fff;border-radius:var(--r-lg);padding:20px;border:1px solid var(--gray-200);margin-bottom:16px}
+.set-card h3{font-size:15px;font-weight:600;margin-bottom:16px}
+.set-field{margin-bottom:14px}
+.set-field label{display:block;font-size:12px;font-weight:500;color:var(--gray-600);margin-bottom:6px}
+.set-field input{width:100%;padding:10px 14px;border:1.5px solid var(--gray-200);border-radius:var(--r-sm);font-size:14px;font-family:inherit;color:var(--gray-800);outline:none}
+.set-field input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(27,79,216,.1)}
+.btn-save{padding:11px 24px;background:var(--blue);color:#fff;border:none;border-radius:var(--r-sm);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .15s}
+.btn-save:hover{background:#1540B0}
+.btn-save:disabled{opacity:.5;cursor:not-allowed}
+.save-ok{font-size:12px;color:var(--green);margin-left:10px;display:none}
+.empty{text-align:center;padding:2.5rem 1rem;color:var(--gray-400);font-size:13px}
+.hint-text{font-size:12px;color:var(--gray-500);margin-bottom:16px}
+
+@media(max-width:400px){
+  .login-card{padding:28px 24px}
+  .page{padding:16px}
+  .stats-row{gap:6px}
+  .stat-box{padding:10px 8px}
+  .stat-box .sn{font-size:20px}
+}
+</style>
+</head>
+<body>
+
+<div class="screen active" id="sc-loading">
+  <div class="spinner"></div>
+</div>
+
+<!-- 로그인 -->
+<div class="screen" id="sc-login">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 8h4M7 11h2"/>
+      </svg>
+    </div>
+    <h1>중간결산 제출</h1>
+    <p class="subtitle">매니저 포털 — 이메일과 비밀번호로 로그인하세요</p>
+    <div class="field"><label>이메일</label><input type="email" id="ln" placeholder="manager@company.com" autocomplete="email"></div>
+    <div class="field"><label>비밀번호</label><input type="password" id="lpw" placeholder="••••••••" autocomplete="current-password"></div>
+    <div class="err-msg" id="lerr"></div>
+    <button class="btn-primary" id="btn-login" onclick="doLogin()">로그인</button>
+    <div class="divider"><span>관리자</span></div>
+    <button class="btn-secondary" onclick="doAdminLogin()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      관리자 로그인
+    </button>
+  </div>
+</div>
+
+<!-- 매니저 화면 -->
+<div class="screen" id="sc-manager">
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand"><div class="dot"></div>매니저 포털</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="user-chip"><div class="avatar" id="mgr-av"></div><span class="user-name" id="mgr-nm"></span></div>
+        <button class="btn-logout" onclick="logout()">로그아웃</button>
+      </div>
+    </div>
+  </header>
+  <div class="page">
+    <div class="month-hd">
+      <div class="period" id="mgr-period"></div>
+      <div class="title">본사 제출 항목</div>
+      <div class="dl-row">
+        <span class="dl-lbl">마감일</span>
+        <span class="dl-val" id="mgr-dl"></span>
+        <span class="d-chip" id="mgr-chip"></span>
+      </div>
+    </div>
+    <div class="sec-title">제출 항목</div>
+    <div id="submit-wrap"><div class="empty">불러오는 중...</div></div>
+    <div class="notice">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="currentColor"/></svg>
+      <p>엑셀 파일(.xlsx, .xls, .csv)로 제출해주세요. 마감일 이후 제출은 지연 처리됩니다. 수정이 필요하면 관리자에게 문의하세요.</p>
+    </div>
+  </div>
+</div>
+
+<!-- 관리자 화면 -->
+<div class="screen" id="sc-admin">
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand"><div class="dot" style="background:#7C3AED"></div>관리자 대시보드</div>
+      <button class="btn-logout" onclick="logout()">로그아웃</button>
+    </div>
+  </header>
+  <div class="page">
+    <div class="admin-tabs">
+      <button class="atab active" onclick="switchTab('status',this)">제출 현황</button>
+      <button class="atab" onclick="switchTab('managers',this)">매니저 관리</button>
+      <button class="atab" onclick="switchTab('settings',this)">설정</button>
+    </div>
+
+    <div id="atab-status">
+      <div class="stats-row">
+        <div class="stat-box blue"><div class="sn" id="a-total">-</div><div class="sl">전체</div></div>
+        <div class="stat-box green"><div class="sn" id="a-done">-</div><div class="sl">제출완료</div></div>
+        <div class="stat-box red"><div class="sn" id="a-miss">-</div><div class="sl">미제출</div></div>
+      </div>
+      <div class="prog-wrap">
+        <div class="prog-hd"><span class="prog-title" id="a-period-title">제출 현황</span><span class="prog-pct" id="prog-pct">0%</span></div>
+        <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+      </div>
+      <div class="top-row">
+        <div class="filter-row" style="margin:0">
+          <button class="fbtn active" onclick="setFilter('all',this)">전체</button>
+          <button class="fbtn" onclick="setFilter('done',this)">제출완료</button>
+          <button class="fbtn" onclick="setFilter('pend',this)">미제출</button>
+        </div>
+        <button class="export-btn" onclick="exportCSV()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          CSV 내보내기
+        </button>
+      </div>
+      <div class="mgr-list" id="mgr-list"><div class="empty">불러오는 중...</div></div>
+    </div>
+
+    <div id="atab-managers" style="display:none">
+      <div class="set-card">
+        <h3>매니저 계정 추가</h3>
+        <p class="hint-text">Firebase에 로그인 계정이 생성되고 매니저 목록에 등록됩니다.</p>
+        <div class="set-field"><label>이름</label><input type="text" id="add-name" placeholder="홍길동"></div>
+        <div class="set-field"><label>매장명</label><input type="text" id="add-store" placeholder="강남점"></div>
+        <div class="set-field"><label>이메일</label><input type="email" id="add-email" placeholder="manager@company.com"></div>
+        <div class="set-field"><label>임시 비밀번호</label><input type="text" id="add-pw" value="Pass1234!"></div>
+        <button class="btn-save" id="btn-add" onclick="addManager()">매니저 추가</button>
+        <span class="save-ok" id="add-ok"></span>
+      </div>
+      <div class="set-card">
+        <h3>등록된 매니저</h3>
+        <div id="reg-list"><div class="empty">불러오는 중...</div></div>
+      </div>
+    </div>
+
+    <div id="atab-settings" style="display:none">
+      <div class="set-card">
+        <h3>마감 설정</h3>
+        <div class="set-field"><label>기간명</label><input type="text" id="set-period" placeholder="2025년 5월"></div>
+        <div class="set-field"><label>마감일</label><input type="date" id="set-deadline"></div>
+        <button class="btn-save" onclick="saveSettings()">저장</button>
+        <span class="save-ok" id="save-ok">저장되었습니다 ✓</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 제출 모달 -->
+<div class="overlay" id="overlay" onclick="handleOverlayClick(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-hd">
+      <h2>중간결산 제출</h2>
+      <p id="modal-sub">엑셀 파일을 첨부하고 제출하기를 눌러주세요</p>
+    </div>
+    <div class="modal-body">
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-in').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6M9 15l3-3 3 3"/></svg>
+        <div class="uzt">파일을 드래그하거나 클릭해서 선택</div>
+        <div class="uzs">.xlsx, .xls, .csv 파일만 가능</div>
+        <input type="file" id="file-in" accept=".xlsx,.xls,.csv" onchange="onFileSelect(this)">
+      </div>
+      <div class="file-prev" id="file-prev">
+        <div class="fp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 12 11 14 15 10"/></svg></div>
+        <div class="fp-info">
+          <div class="fp-name" id="fp-name"></div>
+          <div class="fp-size" id="fp-size"></div>
+        </div>
+        <button class="btn-clr" onclick="clearFile()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeModal()">취소</button>
+      <button class="btn-submit" id="btn-submit" onclick="doSubmit()" disabled>제출하기</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+  <span id="toast-msg"></span>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-storage.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAPdxADePKV1qQvPdKt7X5gdadSIt7H7Nc",
+  authDomain: "ojfnb-fdd19.firebaseapp.com",
+  projectId: "ojfnb-fdd19",
+  storageBucket: "ojfnb-fdd19.firebasestorage.app",
+  messagingSenderId: "971035446073",
+  appId: "1:971035446073:web:ae4b85acc929fb4675b6e8"
+};
+
+const app   = initializeApp(firebaseConfig);
+const auth  = getAuth(app);
+const db    = getFirestore(app);
+const stor  = getStorage(app);
+
+// ── 관리자 이메일 설정 ──
+const ADMIN_EMAIL = "admin@ojfnb.com";
+
+let me = null, meData = null;
+let cfg = { period:"2025년 5월", deadline:"2025-05-20" };
+let filter = "all";
+let managers = [], subs = {};
+let selFile = null;
+
+// ── 유틸 ──
+const fmtDate = s => { const d=new Date(s+"T00:00:00"); return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}` };
+const fmtDT = ts => { const d=ts?.toDate?ts.toDate():new Date(ts); return `${fmtDate(d.toISOString().slice(0,10))} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}` };
+const dDays = () => { const t=new Date();t.setHours(0,0,0,0);const d=new Date(cfg.deadline+"T00:00:00");return Math.round((d-t)/86400000) };
+
+function toast(msg, err=false) {
+  const el=document.getElementById("toast");
+  document.getElementById("toast-msg").textContent=msg;
+  el.className="toast"+(err?" err":"");
+  el.classList.add("show");
+  setTimeout(()=>el.classList.remove("show"),3000);
+}
+function show(id) {
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  window.scrollTo(0,0);
+}
+
+// ── 인증 상태 감지 ──
+onAuthStateChanged(auth, async user => {
+  if (user) {
+    me = user;
+    const snap = await getDoc(doc(db,"managers",user.uid));
+    meData = snap.exists() ? snap.data() : null;
+    await loadCfg();
+    if (user.email === ADMIN_EMAIL) {
+      show("sc-admin");
+      renderAdmin();
+    } else {
+      document.getElementById("mgr-av").textContent = (meData?.name||user.email)[0];
+      document.getElementById("mgr-nm").textContent = meData?.name || user.email;
+      renderMgrHeader();
+      show("sc-manager");
+      await loadMySub();
+    }
+  } else {
+    me = null; meData = null;
+    show("sc-login");
+  }
+});
+
+async function loadCfg() {
+  try { const s=await getDoc(doc(db,"config","settings")); if(s.exists()) cfg=s.data(); } catch(e) {}
+}
+
+// ── 로그인 ──
+window.doLogin = async () => {
+  const email=document.getElementById("ln").value.trim();
+  const pw=document.getElementById("lpw").value;
+  const errEl=document.getElementById("lerr");
+  const btn=document.getElementById("btn-login");
+  if(!email||!pw){errEl.textContent="이메일과 비밀번호를 입력해주세요";errEl.style.display="block";return}
+  btn.disabled=true;btn.textContent="로그인 중...";
+  try { await signInWithEmailAndPassword(auth,email,pw);errEl.style.display="none"; }
+  catch(e) { errEl.textContent="이메일 또는 비밀번호가 올바르지 않습니다";errEl.style.display="block"; }
+  btn.disabled=false;btn.textContent="로그인";
+};
+
+window.doAdminLogin = async () => {
+  const email=prompt("관리자 이메일");
+  const pw=prompt("관리자 비밀번호");
+  if(!email||!pw) return;
+  try { await signInWithEmailAndPassword(auth,email,pw); }
+  catch(e) { toast("로그인 실패: "+e.message,true); }
+};
+
+window.logout = async () => { await signOut(auth); };
+
+// ── 매니저 화면 ──
+function renderMgrHeader() {
+  document.getElementById("mgr-period").textContent=cfg.period;
+  document.getElementById("mgr-dl").textContent=fmtDate(cfg.deadline);
+  const dd=dDays();
+  const chip=document.getElementById("mgr-chip");
+  if(dd<0){chip.textContent="마감 초과";chip.className="d-chip over";}
+  else if(dd===0){chip.textContent="D-Day";chip.className="d-chip danger";}
+  else if(dd<=3){chip.textContent=`D-${dd}`;chip.className="d-chip warn";}
+  else{chip.textContent=`D-${dd}`;chip.className="d-chip safe";}
+}
+
+async function loadMySub() {
+  const wrap=document.getElementById("submit-wrap");
+  try {
+    const month=cfg.period.replace(/\s/g,"_");
+    const snap=await getDoc(doc(db,"submissions",`${me.uid}_${month}`));
+    renderCard(snap.exists()?snap.data():null);
+  } catch(e) { wrap.innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`; }
+}
+
+function renderCard(sub) {
+  const wrap=document.getElementById("submit-wrap");
+  const dd=dDays();
+  if(sub) {
+    wrap.innerHTML=`
+      <div class="submit-card submitted">
+        <div class="card-inner">
+          <div class="card-icon s">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#0F7B4A" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 12 11 14 15 10"/></svg>
+          </div>
+          <div class="card-body">
+            <div class="card-name">중간결산</div>
+            <div class="card-meta"><span>${cfg.period}</span><span>·</span><span>${sub.onTime?"정시 제출":"지연 제출"}</span></div>
+          </div>
+          <span class="status-pill sp-done">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            제출완료
+          </span>
+        </div>
+        <div class="sub-detail">
+          <div class="fi"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+          <div style="flex:1;min-width:0">
+            <div class="fn">${sub.fileName}</div>
+            <div class="ft">${fmtDT(sub.submittedAt)} · ${sub.fileSize}</div>
+          </div>
+          ${sub.fileUrl?`<a href="${sub.fileUrl}" target="_blank" style="font-size:12px;color:var(--blue);text-decoration:none;flex-shrink:0;font-weight:500">다운로드</a>`:""}
+        </div>
+      </div>`;
+  } else {
+    const urg=dd<=3&&dd>=0, over=dd<0;
+    wrap.innerHTML=`
+      <div class="submit-card" onclick="openModal()">
+        <div class="card-inner">
+          <div class="card-icon ${over||urg?"u":"p"}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="${over||urg?"#B45309":"#1B4FD8"}" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="12" y2="12"/><line x1="15" y1="15" x2="12" y2="12"/></svg>
+          </div>
+          <div class="card-body">
+            <div class="card-name">중간결산</div>
+            <div class="card-meta">
+              <span>${cfg.period}</span><span>·</span><span>마감 ${fmtDate(cfg.deadline)}</span>
+              ${over?"<span style='color:var(--red);font-weight:600'>· 마감 초과</span>":""}
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="status-pill ${over||urg?"sp-urgn":"sp-pend"}">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              미제출
+            </span>
+            <div class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
+          </div>
+        </div>
+      </div>`;
+  }
+}
+
+// ── 모달 ──
+window.openModal = () => {
+  clearFile();
+  const dd=dDays();
+  document.getElementById("modal-sub").textContent = dd<0
+    ? `마감일(${fmtDate(cfg.deadline)})이 지났습니다. 그래도 제출할 수 있습니다.`
+    : `마감일 ${fmtDate(cfg.deadline)} · 엑셀 파일을 첨부해주세요`;
+  document.getElementById("overlay").classList.add("show");
+};
+window.closeModal = () => { document.getElementById("overlay").classList.remove("show"); clearFile(); };
+window.handleOverlayClick = e => { if(e.target===document.getElementById("overlay")) closeModal(); };
+window.onFileSelect = input => { if(input.files[0]) setFile(input.files[0]); };
+window.onDragOver = e => { e.preventDefault();e.currentTarget.classList.add("drag"); };
+window.onDragLeave = e => { e.currentTarget.classList.remove("drag"); };
+window.onDrop = e => {
+  e.preventDefault();e.currentTarget.classList.remove("drag");
+  const f=e.dataTransfer.files[0];
+  if(f&&/\.(xlsx|xls|csv)$/i.test(f.name)) setFile(f);
+  else toast("엑셀 파일(.xlsx, .xls, .csv)만 가능합니다",true);
+};
+function setFile(f) {
+  selFile=f;
+  document.getElementById("upload-zone").style.display="none";
+  document.getElementById("file-prev").classList.add("show");
+  document.getElementById("fp-name").textContent=f.name;
+  document.getElementById("fp-size").textContent=(f.size/1024).toFixed(1)+" KB";
+  document.getElementById("btn-submit").disabled=false;
+}
+window.clearFile = () => {
+  selFile=null;
+  document.getElementById("file-in").value="";
+  document.getElementById("upload-zone").style.display="block";
+  document.getElementById("file-prev").classList.remove("show");
+  document.getElementById("btn-submit").disabled=true;
+};
+
+window.doSubmit = async () => {
+  if(!selFile) return;
+  const btn=document.getElementById("btn-submit");
+  btn.disabled=true;btn.textContent="제출 중...";
+  try {
+    const month=cfg.period.replace(/\s/g,"_");
+    const onTime=dDays()>=0;
+    // Storage 업로드
+    const fileRef=ref(stor,`submissions/${month}/${me.uid}_${Date.now()}_${selFile.name}`);
+    await uploadBytes(fileRef,selFile);
+    const fileUrl=await getDownloadURL(fileRef);
+    // Firestore 저장
+    const data={
+      uid:me.uid,
+      managerName:meData?.name||me.email,
+      managerStore:meData?.store||"",
+      period:cfg.period,
+      fileName:selFile.name,
+      fileSize:(selFile.size/1024).toFixed(1)+" KB",
+      fileUrl,
+      submittedAt:new Date(),
+      onTime,
+    };
+    await setDoc(doc(db,"submissions",`${me.uid}_${month}`),data);
+    closeModal();
+    renderCard(data);
+    toast("제출이 완료되었습니다 ✓");
+  } catch(e) { toast("제출 실패: "+e.message,true); }
+  btn.disabled=false;btn.textContent="제출하기";
+};
+
+// ── 관리자 ──
+async function renderAdmin() {
+  await loadCfg();
+  document.getElementById("a-period-title").textContent=cfg.period+" 중간결산";
+  const month=cfg.period.replace(/\s/g,"_");
+  try {
+    const ms=await getDocs(collection(db,"managers"));
+    managers=ms.docs.map(d=>({id:d.id,...d.data()}));
+    const ss=await getDocs(collection(db,"submissions"));
+    subs={};
+    ss.docs.forEach(d=>{ const v=d.data(); if(v.period===cfg.period) subs[v.uid]=v; });
+    updateStats();
+    renderMgrList();
+  } catch(e) {
+    document.getElementById("mgr-list").innerHTML=`<div class="empty">불러오기 실패: ${e.message}</div>`;
+  }
+}
+
+function updateStats() {
+  const total=managers.length, done=managers.filter(m=>subs[m.id]).length;
+  const pct=total?Math.round(done/total*100):0;
+  document.getElementById("a-total").textContent=total;
+  document.getElementById("a-done").textContent=done;
+  document.getElementById("a-miss").textContent=total-done;
+  document.getElementById("prog-pct").textContent=pct+"%";
+  document.getElementById("prog-fill").style.width=pct+"%";
+}
+
+window.setFilter = (f, btn) => {
+  filter=f;
+  document.querySelectorAll(".fbtn").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  renderMgrList();
+};
+
+function renderMgrList() {
+  let list=[...managers];
+  if(filter==="done") list=list.filter(m=>subs[m.id]);
+  if(filter==="pend") list=list.filter(m=>!subs[m.id]);
+  list.sort((a,b)=>!!subs[a.id]-!!subs[b.id]);
+  const el=document.getElementById("mgr-list");
+  if(!list.length){el.innerHTML='<div class="empty">해당하는 매니저가 없습니다</div>';return}
+  el.innerHTML=list.map(m=>{
+    const sub=subs[m.id];
+    return `<div class="mgr-row">
+      <div class="mgr-av ${sub?"done":""}">${(m.name||"?")[0]}</div>
+      <div class="mgr-info">
+        <div class="mgr-name">${m.name||"—"} <span style="font-size:11px;color:var(--gray-400);font-weight:400">${m.store||""}</span></div>
+        <div class="mgr-sub">${m.email||""}</div>
+        ${sub?`<div class="mgr-file">${sub.fileName} · ${fmtDT(sub.submittedAt)}</div>`:""}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+        <span class="pill ${sub?(sub.onTime?"done":"late"):"pend"}">${sub?(sub.onTime?"✓ 정시":"⚠ 지연"):"미제출"}</span>
+        ${sub&&sub.fileUrl?`<a href="${sub.fileUrl}" target="_blank" style="font-size:11px;color:var(--blue)">파일 보기</a>`:""}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+async function loadRegList() {
+  const snap=await getDocs(collection(db,"managers"));
+  const mgrs=snap.docs.map(d=>({id:d.id,...d.data()}));
+  const el=document.getElementById("reg-list");
+  if(!mgrs.length){el.innerHTML='<div class="empty">등록된 매니저가 없습니다</div>';return}
+  el.innerHTML=mgrs.map(m=>`
+    <div class="mgr-row" style="margin-bottom:6px">
+      <div class="mgr-av">${(m.name||"?")[0]}</div>
+      <div class="mgr-info">
+        <div class="mgr-name">${m.name||"—"}</div>
+        <div class="mgr-sub">${m.email||""} ${m.store?"· "+m.store:""}</div>
+      </div>
+    </div>`).join("");
+}
+
+window.addManager = async () => {
+  const name=document.getElementById("add-name").value.trim();
+  const store=document.getElementById("add-store").value.trim();
+  const email=document.getElementById("add-email").value.trim();
+  const pw=document.getElementById("add-pw").value.trim();
+  const btn=document.getElementById("btn-add");
+  const ok=document.getElementById("add-ok");
+  if(!name||!email||!pw){toast("이름, 이메일, 비밀번호를 입력해주세요",true);return}
+  btn.disabled=true;btn.textContent="추가 중...";
+  try {
+    const cred=await createUserWithEmailAndPassword(auth,email,pw);
+    await setDoc(doc(db,"managers",cred.user.uid),{name,store,email,createdAt:new Date()});
+    ok.textContent=`${name} 추가 완료 ✓`;ok.style.display="inline";
+    setTimeout(()=>ok.style.display="none",3000);
+    ["add-name","add-store","add-email"].forEach(id=>document.getElementById(id).value="");
+    loadRegList();
+    renderAdmin();
+  } catch(e) { toast("추가 실패: "+e.message,true); }
+  btn.disabled=false;btn.textContent="매니저 추가";
+};
+
+window.saveSettings = async () => {
+  const period=document.getElementById("set-period").value.trim();
+  const deadline=document.getElementById("set-deadline").value;
+  if(!period||!deadline){toast("기간명과 마감일을 입력해주세요",true);return}
+  try {
+    await setDoc(doc(db,"config","settings"),{period,deadline});
+    cfg={period,deadline};
+    const ok=document.getElementById("save-ok");
+    ok.style.display="inline";setTimeout(()=>ok.style.display="none",2000);
+    renderAdmin();
+  } catch(e){toast("저장 실패: "+e.message,true)}
+};
+
+window.switchTab = (tab, btn) => {
+  document.querySelectorAll(".atab").forEach(t=>t.classList.remove("active"));
+  btn.classList.add("active");
+  ["status","managers","settings"].forEach(t=>document.getElementById("atab-"+t).style.display="none");
+  document.getElementById("atab-"+tab).style.display="block";
+  if(tab==="managers") loadRegList();
+  if(tab==="settings"){
+    document.getElementById("set-period").value=cfg.period;
+    document.getElementById("set-deadline").value=cfg.deadline;
+  }
+  if(tab==="status") renderAdmin();
+};
+
+window.exportCSV = () => {
+  const h="이름,매장,이메일,제출상태,제출시각,파일명,정시여부\n";
+  const r=managers.map(m=>{
+    const s=subs[m.id];
+    return [m.name||"",m.store||"",m.email||"",s?"제출완료":"미제출",s?fmtDT(s.submittedAt):"",s?s.fileName:"",s?(s.onTime?"정시":"지연"):""].join(",");
+  }).join("\n");
+  const blob=new Blob(["\uFEFF"+h+r],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`중간결산_${cfg.period.replace(/\s/g,"")}.csv`;
+  a.click();
+  toast("CSV 저장됨");
+};
+
+document.getElementById("ln").addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("lpw").focus()});
+document.getElementById("lpw").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin()});
+</script>
+</body>
+</html>
