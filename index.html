@@ -216,9 +216,9 @@ body{font-family:'Noto Sans KR',-apple-system,sans-serif;background:var(--gray-5
       </svg>
     </div>
     <h1>중간결산 제출</h1>
-    <p class="subtitle">매니저 포털 — 이메일과 비밀번호로 로그인하세요</p>
-    <div class="field"><label>이메일</label><input type="email" id="ln" placeholder="manager@company.com" autocomplete="email"></div>
-    <div class="field"><label>비밀번호</label><input type="password" id="lpw" placeholder="••••••••" autocomplete="current-password"></div>
+    <p class="subtitle">매니저 포털 — 이름과 사번으로 로그인하세요</p>
+    <div class="field"><label>이름</label><input type="text" id="ln" placeholder="홍길동" autocomplete="name"></div>
+    <div class="field"><label>사번</label><input type="text" id="lpw" placeholder="M001" autocomplete="off" style="text-transform:uppercase"></div>
     <div class="err-msg" id="lerr"></div>
     <button class="btn-primary" id="btn-login" onclick="doLogin()">로그인</button>
     <div class="divider"><span>관리자</span></div>
@@ -304,8 +304,8 @@ body{font-family:'Noto Sans KR',-apple-system,sans-serif;background:var(--gray-5
         <p class="hint-text">Firebase에 로그인 계정이 생성되고 매니저 목록에 등록됩니다.</p>
         <div class="set-field"><label>이름</label><input type="text" id="add-name" placeholder="홍길동"></div>
         <div class="set-field"><label>매장명</label><input type="text" id="add-store" placeholder="강남점"></div>
-        <div class="set-field"><label>이메일</label><input type="email" id="add-email" placeholder="manager@company.com"></div>
-        <div class="set-field"><label>임시 비밀번호</label><input type="text" id="add-pw" value="Pass1234!"></div>
+        <div class="set-field"><label>사번</label><input type="text" id="add-email" placeholder="M001" style="text-transform:uppercase"></div>
+        <p style="font-size:11px;color:var(--gray-400);margin-bottom:12px">비밀번호는 자동 생성됩니다 (OjfnbM001!)</p>
         <button class="btn-save" id="btn-add" onclick="addManager()">매니저 추가</button>
         <span class="save-ok" id="add-ok"></span>
       </div>
@@ -438,15 +438,23 @@ async function loadCfg() {
 }
 
 // ── 로그인 ──
+// 매니저: 이름 + 사번 입력 → 사번@ojfnb.com / 비밀번호: Ojfnb사번! 으로 자동 변환
 window.doLogin = async () => {
-  const email=document.getElementById("ln").value.trim();
-  const pw=document.getElementById("lpw").value;
+  const name=document.getElementById("ln").value.trim();
+  const id=document.getElementById("lpw").value.trim().toUpperCase();
   const errEl=document.getElementById("lerr");
   const btn=document.getElementById("btn-login");
-  if(!email||!pw){errEl.textContent="이메일과 비밀번호를 입력해주세요";errEl.style.display="block";return}
+  if(!name||!id){errEl.textContent="이름과 사번을 입력해주세요";errEl.style.display="block";return}
+  const email=`${id.toLowerCase()}@ojfnb.com`;
+  const pw=`Ojfnb${id}!`;
   btn.disabled=true;btn.textContent="로그인 중...";
-  try { await signInWithEmailAndPassword(auth,email,pw);errEl.style.display="none"; }
-  catch(e) { errEl.textContent="이메일 또는 비밀번호가 올바르지 않습니다";errEl.style.display="block"; }
+  try {
+    await signInWithEmailAndPassword(auth,email,pw);
+    errEl.style.display="none";
+  } catch(e) {
+    errEl.textContent="이름 또는 사번을 확인해주세요";
+    errEl.style.display="block";
+  }
   btn.disabled=false;btn.textContent="로그인";
 };
 
@@ -680,16 +688,18 @@ async function loadRegList() {
 window.addManager = async () => {
   const name=document.getElementById("add-name").value.trim();
   const store=document.getElementById("add-store").value.trim();
-  const email=document.getElementById("add-email").value.trim();
-  const pw=document.getElementById("add-pw").value.trim();
+  const empId=document.getElementById("add-email").value.trim().toUpperCase();
   const btn=document.getElementById("btn-add");
   const ok=document.getElementById("add-ok");
-  if(!name||!email||!pw){toast("이름, 이메일, 비밀번호를 입력해주세요",true);return}
+  if(!name||!empId){toast("이름과 사번을 입력해주세요",true);return}
+  // 사번으로 이메일/비밀번호 자동 생성
+  const email=`${empId.toLowerCase()}@ojfnb.com`;
+  const pw=`Ojfnb${empId}!`;
   btn.disabled=true;btn.textContent="추가 중...";
   try {
     const cred=await createUserWithEmailAndPassword(auth,email,pw);
-    await setDoc(doc(db,"managers",cred.user.uid),{name,store,email,createdAt:new Date()});
-    ok.textContent=`${name} 추가 완료 ✓`;ok.style.display="inline";
+    await setDoc(doc(db,"managers",cred.user.uid),{name,store,email,empId,createdAt:new Date()});
+    ok.textContent=`${name}(${empId}) 추가 완료 ✓`;ok.style.display="inline";
     setTimeout(()=>ok.style.display="none",3000);
     ["add-name","add-store","add-email"].forEach(id=>document.getElementById(id).value="");
     loadRegList();
