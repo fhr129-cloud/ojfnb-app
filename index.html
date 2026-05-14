@@ -303,8 +303,11 @@ body{font-family:'Noto Sans KR',-apple-system,sans-serif;background:var(--gray-5
         <h3>매니저 계정 추가</h3>
         <p class="hint-text">Firebase에 로그인 계정이 생성되고 매니저 목록에 등록됩니다.</p>
         <div class="set-field"><label>이름</label><input type="text" id="add-name" placeholder="홍길동"></div>
-        <div class="set-field"><label>매장명</label><input type="text" id="add-store" placeholder="강남점"></div>
         <div class="set-field"><label>사번</label><input type="text" id="add-email" placeholder="M001" style="text-transform:uppercase"></div>
+        <div class="set-field">
+          <label>담당 사업장 <span style="font-weight:400;color:var(--gray-400)">(여러 개면 쉼표로 구분)</span></label>
+          <input type="text" id="add-store" placeholder="강남점, 홍대점, 신촌점">
+        </div>
         <p style="font-size:11px;color:var(--gray-400);margin-bottom:12px">비밀번호는 자동 생성됩니다 (OjfnbM001!)</p>
         <button class="btn-save" id="btn-add" onclick="addManager()">매니저 추가</button>
         <span class="save-ok" id="add-ok"></span>
@@ -421,8 +424,9 @@ onAuthStateChanged(auth, async user => {
       show("sc-admin");
       renderAdmin();
     } else {
+      const storeText=Array.isArray(meData?.stores)&&meData.stores.length ? meData.stores.join(" · ") : (meData?.store||"");
       document.getElementById("mgr-av").textContent = (meData?.name||user.email)[0];
-      document.getElementById("mgr-nm").textContent = meData?.name || user.email;
+      document.getElementById("mgr-nm").textContent = storeText ? `${meData?.name} (${storeText})` : (meData?.name||user.email);
       renderMgrHeader();
       show("sc-manager");
       await loadMySub();
@@ -655,11 +659,12 @@ function renderMgrList() {
   if(!list.length){el.innerHTML='<div class="empty">해당하는 매니저가 없습니다</div>';return}
   el.innerHTML=list.map(m=>{
     const sub=subs[m.id];
+    const storeText=Array.isArray(m.stores)&&m.stores.length ? m.stores.join(" · ") : (m.store||"");
     return `<div class="mgr-row">
       <div class="mgr-av ${sub?"done":""}">${(m.name||"?")[0]}</div>
       <div class="mgr-info">
-        <div class="mgr-name">${m.name||"—"} <span style="font-size:11px;color:var(--gray-400);font-weight:400">${m.store||""}</span></div>
-        <div class="mgr-sub">${m.email||""}</div>
+        <div class="mgr-name">${m.name||"—"} <span style="font-size:11px;color:var(--gray-400);font-weight:400">${storeText}</span></div>
+        <div class="mgr-sub">${m.empId||""}</div>
         ${sub?`<div class="mgr-file">${sub.fileName} · ${fmtDT(sub.submittedAt)}</div>`:""}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
@@ -675,30 +680,34 @@ async function loadRegList() {
   const mgrs=snap.docs.map(d=>({id:d.id,...d.data()}));
   const el=document.getElementById("reg-list");
   if(!mgrs.length){el.innerHTML='<div class="empty">등록된 매니저가 없습니다</div>';return}
-  el.innerHTML=mgrs.map(m=>`
+  el.innerHTML=mgrs.map(m=>{
+    const storeText=Array.isArray(m.stores)&&m.stores.length ? m.stores.join(" · ") : (m.store||"");
+    return `
     <div class="mgr-row" style="margin-bottom:6px">
       <div class="mgr-av">${(m.name||"?")[0]}</div>
       <div class="mgr-info">
-        <div class="mgr-name">${m.name||"—"}</div>
-        <div class="mgr-sub">${m.email||""} ${m.store?"· "+m.store:""}</div>
+        <div class="mgr-name">${m.name||"—"} <span style="font-size:11px;color:var(--gray-400);font-weight:400">${m.empId||""}</span></div>
+        <div class="mgr-sub">${storeText}</div>
       </div>
-    </div>`).join("");
+    </div>`;
+  }).join("");
 }
 
 window.addManager = async () => {
   const name=document.getElementById("add-name").value.trim();
-  const store=document.getElementById("add-store").value.trim();
+  const storeInput=document.getElementById("add-store").value.trim();
   const empId=document.getElementById("add-email").value.trim().toUpperCase();
   const btn=document.getElementById("btn-add");
   const ok=document.getElementById("add-ok");
   if(!name||!empId){toast("이름과 사번을 입력해주세요",true);return}
-  // 사번으로 이메일/비밀번호 자동 생성
+  // 사업장 여러 개 → 배열로 저장
+  const stores=storeInput ? storeInput.split(",").map(s=>s.trim()).filter(Boolean) : [];
   const email=`${empId.toLowerCase()}@ojfnb.com`;
   const pw=`Ojfnb${empId}!`;
   btn.disabled=true;btn.textContent="추가 중...";
   try {
     const cred=await createUserWithEmailAndPassword(auth,email,pw);
-    await setDoc(doc(db,"managers",cred.user.uid),{name,store,email,empId,createdAt:new Date()});
+    await setDoc(doc(db,"managers",cred.user.uid),{name,stores,email,empId,createdAt:new Date()});
     ok.textContent=`${name}(${empId}) 추가 완료 ✓`;ok.style.display="inline";
     setTimeout(()=>ok.style.display="none",3000);
     ["add-name","add-store","add-email"].forEach(id=>document.getElementById(id).value="");
